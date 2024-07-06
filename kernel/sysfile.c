@@ -503,3 +503,17 @@ sys_pipe(void)
   }
   return 0;
 }
+
+ushort
+sys_opendfd(void)
+{
+    struct proc *p = myproc();
+    ushort ret = 0;
+    for (int fd = 0; NOFILE > fd; fd++) {
+        if (p->ofile[fd] != 0) {
+            ret = ret | (1 << fd);
+        }
+    }
+    return ret;
+}
+

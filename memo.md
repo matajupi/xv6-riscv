@@ -1,0 +1,3 @@
+- 実行方法:
+    - MakefileのUPROGSに新たなsourceを追加
+    - make qemu
