@@ -81,6 +81,15 @@ struct virtq_used {
   struct virtq_used_elem ring[NUM];
 };
 
+struct virtq {
+    struct virtq_desc *desc;
+    struct virtq_avail *avail;
+    struct virtq_used *used;
+
+    char free[NUM];
+    // char status[NUM];
+};
+
 // these are specific to virtio block devices, e.g. disks,
 // described in Section 5.2 of the spec.
 
@@ -94,4 +103,13 @@ struct virtio_blk_req {
   uint32 type; // VIRTIO_BLK_T_IN or ..._OUT
   uint32 reserved;
   uint64 sector;
+};
+
+struct virtio_net_hdr {
+    uint8 flags;
+    uint8 gso_type;
+    uint16 hdr_len;
+    uint16 gso_size;
+    uint16 csum_start;
+    uint16 csum_offset;
 };

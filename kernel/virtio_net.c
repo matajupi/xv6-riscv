@@ -12,18 +12,9 @@
 
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
 
-struct virtqueue {
-    struct virtq_desc *desc;
-    struct virtq_avail *avail;
-    struct virtq_used *used;
-
-    char free[NUM];
-    // char status[NUM];
-};
-
 static struct net {
-    struct virtqueue recvq;
-    struct virtqueue transq;
+    struct virtq recvq;
+    struct virtq transq;
 
     struct spinlock vnet_lock;
 } net;
@@ -31,10 +22,12 @@ static struct net {
 struct virtio_net_config {
     uint8 mac[6];
     uint16 status;
-    uint16 max_virtqueue_pairs;
+    uint16 max_virtq_pairs;
 };
 
-static void setup_virtqueue(uint8 sel, struct virtqueue *que) {
+struct virtio_net_hdr empty_hdr;
+
+static void setup_virtq(uint8 sel, struct virtq *que) {
     *R(VIRTIO_MMIO_QUEUE_SEL) = sel;
 
     if (*R(VIRTIO_MMIO_QUEUE_READY)) {
@@ -95,8 +88,8 @@ void virtio_net_init(void) {
     status |= VIRTIO_CONFIG_S_FEATURES_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
 
-    setup_virtqueue(0, &net.recvq);
-    setup_virtqueue(1, &net.transq);
+    setup_virtq(0, &net.recvq);
+    setup_virtq(1, &net.transq);
 
     *R(VIRTIO_MMIO_QUEUE_READY) = 0x1;
 
@@ -114,7 +107,7 @@ void virtio_net_init(void) {
         cfg->mac[4], cfg->mac[5]);
 }
 
-static int alloc_desc(struct virtqueue *que) {
+static int alloc_desc(struct virtq *que) {
     for (int i = 0; NUM > i; i++) {
         if (que->free[i]) {
             que->free[i] = 0;
@@ -124,41 +117,60 @@ static int alloc_desc(struct virtqueue *que) {
     return -1;
 }
 
-// static void free_desc(struct virtqueue *que, int i) {
-//     if (i >= NUM) {
-//         panic("free_desc 1");
-//     }
-//     if (que->free[i]) {
-//         panic("free_desc 2");
-//     }
-//     que->desc[i].addr = 0;
-//     que->desc[i].len = 0;
-//     que->desc[i].flags = 0;
-//     que->desc[i].next = 0;
-//     que->free[i] = 1;
-//     wakeup(&que->free[0]);
-// }
+static void free_desc(struct virtq *que, int i) {
+    if (i >= NUM) {
+        panic("free_desc 1");
+    }
+    if (que->free[i]) {
+        panic("free_desc 2");
+    }
+    que->desc[i].addr = 0;
+    que->desc[i].len = 0;
+    que->desc[i].flags = 0;
+    que->desc[i].next = 0;
+    que->free[i] = 1;
+    wakeup(&que->free[0]);
+}
+
+static int alloc_desc_n(struct virtq *que, int *idx, int n) {
+    for (int i = 0; n > i; i++) {
+        idx[i] = alloc_desc(que);
+        if (idx[i] < 0) {
+            for (int j = 0; i > j; j++) {
+                free_desc(que, idx[j]);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
 
 void virtio_net_send(void *buf, uint32 length) {
     acquire(&net.vnet_lock);
 
-    int idx;
+    int idx[2];
     while (1) {
-        if ((idx = alloc_desc(&net.transq)) >= 0) {
+        if (alloc_desc_n(&net.transq, idx, 2) == 0) {
             break;
         }
         sleep(&net.transq.free[0], &net.vnet_lock);
     }
-    net.transq.desc[idx].addr = (uint64)buf;
-    net.transq.desc[idx].len = length;
-    net.transq.desc[idx].flags = 0; // TODO: EOP
-    net.transq.desc[idx].next = 0;
 
-    net.transq.avail->ring[net.transq.avail->idx % NUM] = idx;
+    net.transq.desc[idx[0]].addr = (uint64)&empty_hdr;
+    net.transq.desc[idx[0]].len = sizeof(struct virtio_net_hdr);
+    net.transq.desc[idx[0]].flags = VRING_DESC_F_NEXT;
+    net.transq.desc[idx[0]].next = idx[1];
+
+    net.transq.desc[idx[1]].addr = (uint64)buf;
+    net.transq.desc[idx[1]].len = length;
+    net.transq.desc[idx[1]].flags = 0;
+    net.transq.desc[idx[1]].next = 0;
+
+    net.transq.avail->ring[net.transq.avail->idx % NUM] = idx[0];
 
     __sync_synchronize();
 
-    net.transq.avail->idx += 1;
+    net.transq.avail->idx++;
 
     __sync_synchronize();
 
