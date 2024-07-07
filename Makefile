@@ -2,33 +2,34 @@ K=kernel
 U=user
 
 OBJS = \
-  $K/entry.o \
-  $K/start.o \
-  $K/console.o \
-  $K/printf.o \
-  $K/uart.o \
-  $K/kalloc.o \
-  $K/spinlock.o \
-  $K/string.o \
-  $K/main.o \
-  $K/vm.o \
-  $K/proc.o \
-  $K/swtch.o \
-  $K/trampoline.o \
-  $K/trap.o \
-  $K/syscall.o \
-  $K/sysproc.o \
-  $K/bio.o \
-  $K/fs.o \
-  $K/log.o \
-  $K/sleeplock.o \
-  $K/file.o \
-  $K/pipe.o \
-  $K/exec.o \
-  $K/sysfile.o \
-  $K/kernelvec.o \
-  $K/plic.o \
-  $K/virtio_disk.o
+  	$K/entry.o \
+  	$K/start.o \
+  	$K/console.o \
+  	$K/printf.o \
+  	$K/uart.o \
+  	$K/kalloc.o \
+  	$K/spinlock.o \
+  	$K/string.o \
+  	$K/main.o \
+  	$K/vm.o \
+  	$K/proc.o \
+  	$K/swtch.o \
+  	$K/trampoline.o \
+  	$K/trap.o \
+  	$K/syscall.o \
+  	$K/sysproc.o \
+  	$K/bio.o \
+  	$K/fs.o \
+  	$K/log.o \
+  	$K/sleeplock.o \
+  	$K/file.o \
+  	$K/pipe.o \
+  	$K/exec.o \
+  	$K/sysfile.o \
+  	$K/kernelvec.o \
+  	$K/plic.o \
+  	$K/virtio_disk.o \
+	$K/virtio_net.o \
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -163,9 +164,12 @@ QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nogr
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+QEMUOPTS += -netdev tap,script=no,downscript=no,id=net0
+QEMUOPTS += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1
+QEMUOPTS += -object filter-dump,id=fiter0,netdev=net0,file=dump.pcap
 
 qemu: $K/kernel fs.img
-	$(QEMU) $(QEMUOPTS)
+	sudo $(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@

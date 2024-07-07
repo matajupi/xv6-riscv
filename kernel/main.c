@@ -28,6 +28,10 @@ main()
     iinit();         // inode table
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
+    virtio_net_init();
+char msg[] = "Hello World!";
+virtio_net_send(msg, sizeof(msg));
+printf("message sent\n");
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
