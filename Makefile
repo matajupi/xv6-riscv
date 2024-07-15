@@ -30,6 +30,7 @@ OBJS = \
   	$K/plic.o \
   	$K/virtio_disk.o \
 	$K/virtio_net.o \
+	$K/net.o \
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -136,6 +137,7 @@ UPROGS=\
 	$U/_typecho\
 	$U/_pwd\
 	$U/_test_opendfd\
+	$U/_netwrite\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -164,9 +166,11 @@ QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nogr
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-QEMUOPTS += -netdev tap,script=no,downscript=no,id=net0
+# QEMUOPTS += -netdev user,id=net0,hostfwd=tcp:127.0.0.1:1234-:80
+QEMUOPTS += -netdev tap,ifname=tap0,script=no,downscript=no,id=net0
 QEMUOPTS += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1
 QEMUOPTS += -object filter-dump,id=fiter0,netdev=net0,file=dump.pcap
+
 
 qemu: $K/kernel fs.img
 	sudo $(QEMU) $(QEMUOPTS)

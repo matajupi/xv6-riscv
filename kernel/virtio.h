@@ -46,6 +46,16 @@
 #define VIRTIO_RING_F_INDIRECT_DESC 28
 #define VIRTIO_RING_F_EVENT_IDX     29
 
+#define VIRTIO_NET_F_GUEST_CSUM     1
+#define VIRTIO_NET_F_GUEST_TSO4     7
+#define VIRTIO_NET_F_GUEST_TSO6     8
+#define VIRTIO_NET_F_GUEST_ECN      9
+#define VIRTIO_NET_F_GUEST_UFO      10
+#define VIRTIO_NET_F_HOST_TSO4      11
+#define VIRTIO_NET_F_HOST_TSO6      12
+#define VIRTIO_NET_F_HOST_UFO       14
+#define VIRTIO_NET_F_MQ             22
+
 // this many virtio descriptors.
 // must be a power of two.
 #define NUM 8
@@ -62,6 +72,7 @@ struct virtq_desc {
 
 // the (entire) avail ring, from the spec.
 struct virtq_avail {
+#define VRING_AVAIL_F_NO_INTERRUPT 1 // disable interrupt
   uint16 flags; // always zero
   uint16 idx;   // driver will write ring[idx] next
   uint16 ring[NUM]; // descriptor numbers of chain heads
@@ -87,7 +98,7 @@ struct virtq {
     struct virtq_used *used;
 
     char free[NUM];
-    // char status[NUM];
+    uint16 used_idx;
 };
 
 // these are specific to virtio block devices, e.g. disks,
@@ -107,6 +118,11 @@ struct virtio_blk_req {
 
 struct virtio_net_hdr {
     uint8 flags;
+#define VIRTIO_NET_HDR_GSO_NONE        0 
+#define VIRTIO_NET_HDR_GSO_TCPV4       1 
+#define VIRTIO_NET_HDR_GSO_UDP         3 
+#define VIRTIO_NET_HDR_GSO_TCPV6       4 
+#define VIRTIO_NET_HDR_GSO_ECN      0x80 
     uint8 gso_type;
     uint16 hdr_len;
     uint16 gso_size;

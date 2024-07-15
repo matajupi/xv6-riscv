@@ -22,6 +22,9 @@ void            consoleinit(void);
 void            consoleintr(int);
 void            consputc(int);
 
+// net.c
+void            netinit(void);
+
 // exec.c
 int             exec(char*, char**);
 
@@ -187,7 +190,8 @@ void            virtio_disk_intr(void);
 
 // virtio_net.c
 void            virtio_net_init(void);
-void            virtio_net_send(void *buf, uint32 length);
+void            virtio_net_send(void *buf, int len);
+uint16            virtio_net_recv(void *buf);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

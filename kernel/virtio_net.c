@@ -52,6 +52,9 @@ static void setup_virtq(uint8 sel, struct virtq *que) {
     memset(que->avail, 0, PGSIZE);
     memset(que->used, 0, PGSIZE);
 
+    // TODO: No Interrupt
+    // que->avail->flags = VRING_AVAIL_F_NO_INTERRUPT;
+
     *R(VIRTIO_MMIO_QUEUE_NUM) = NUM;
 
     *R(VIRTIO_MMIO_QUEUE_DESC_LOW)      = (uint64)que->desc;
@@ -83,7 +86,20 @@ void virtio_net_init(void) {
     status |= VIRTIO_CONFIG_S_DRIVER;
     *R(VIRTIO_MMIO_STATUS) = status;
 
-    // TODO: Initialize features bits
+    // TODO: initialize features bits
+    uint64 features = *R(VIRTIO_MMIO_DEVICE_FEATURES);
+    features &= ~(1 << VIRTIO_F_ANY_LAYOUT);
+    features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
+    features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
+    features &= ~(1 << VIRTIO_NET_F_MQ);
+    // features |= 1 << VIRTIO_NET_F_GUEST_CSUM;
+    // features |= 1 << VIRTIO_NET_F_GUEST_TSO4;
+    // features |= 1 << VIRTIO_NET_F_GUEST_TSO6;
+    // features |= 1 << VIRTIO_NET_F_GUEST_UFO;
+    // features |= 1 << VIRTIO_NET_F_HOST_TSO4;
+    // features |= 1 << VIRTIO_NET_F_HOST_TSO6;
+    // features |= 1 << VIRTIO_NET_F_HOST_UFO;
+    *R(VIRTIO_MMIO_DRIVER_FEATURES) = features;
 
     status |= VIRTIO_CONFIG_S_FEATURES_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
@@ -101,10 +117,10 @@ void virtio_net_init(void) {
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
 
-    // print mac address
-    struct virtio_net_config *cfg = (struct virtio_net_config *)R(VIRTIO_MMIO_CONFIG);
-    printf("%x:%x:%x:%x:%x:%x\n", cfg->mac[0], cfg->mac[1], cfg->mac[2], cfg->mac[3],
-        cfg->mac[4], cfg->mac[5]);
+// TODO: print mac address
+struct virtio_net_config *cfg = (struct virtio_net_config *)R(VIRTIO_MMIO_CONFIG);
+printf("mac: %x:%x:%x:%x:%x:%x\n", cfg->mac[0], cfg->mac[1], cfg->mac[2], cfg->mac[3],
+    cfg->mac[4], cfg->mac[5]);
 }
 
 static int alloc_desc(struct virtq *que) {
@@ -132,6 +148,20 @@ static void free_desc(struct virtq *que, int i) {
     wakeup(&que->free[0]);
 }
 
+static void free_chain(struct virtq *que, int i) {
+    while (1) {
+        int flag = que->desc[i].flags;
+        int nxt = que->desc[i].next;
+        free_desc(que, i);
+        if (flag & VRING_DESC_F_NEXT) {
+            i = nxt;
+        }
+        else {
+            break;
+        }
+    }
+}
+
 static int alloc_desc_n(struct virtq *que, int *idx, int n) {
     for (int i = 0; n > i; i++) {
         idx[i] = alloc_desc(que);
@@ -145,7 +175,7 @@ static int alloc_desc_n(struct virtq *que, int *idx, int n) {
     return 0;
 }
 
-void virtio_net_send(void *buf, uint32 length) {
+void virtio_net_send(void *buf, int len) {
     acquire(&net.vnet_lock);
 
     int idx[2];
@@ -162,12 +192,13 @@ void virtio_net_send(void *buf, uint32 length) {
     net.transq.desc[idx[0]].next = idx[1];
 
     net.transq.desc[idx[1]].addr = (uint64)buf;
-    net.transq.desc[idx[1]].len = length;
+    net.transq.desc[idx[1]].len = len;
     net.transq.desc[idx[1]].flags = 0;
     net.transq.desc[idx[1]].next = 0;
 
     net.transq.avail->ring[net.transq.avail->idx % NUM] = idx[0];
 
+    // Memory barrier
     __sync_synchronize();
 
     net.transq.avail->idx++;
@@ -175,19 +206,38 @@ void virtio_net_send(void *buf, uint32 length) {
     __sync_synchronize();
 
     *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 1;
+    net.transq.used_idx++;
 
-    // TODO: Wait
+    while (net.transq.used_idx != net.transq.used->idx) {
+        __asm__("nop");
+    }
+    free_chain(&net.transq, idx[0]);
 
     release(&net.vnet_lock);
 }
 
-// void virtio_net_intr() {
-//     acquire(&net.vnet_lock);
-// 
-//     *R(VIRTIO_MMIO_INTERRUPT_ACK) = *R(VIRTIO_MMIO_INTERRUPT_STATUS) & 0x3;
-// 
-//     __sync_synchornize();
-//     // TODO:
-// 
-//     release(&net.vnet_lock);
-// }
+uint16 virtio_net_recv(void *buf) {
+    acquire(&net.vnet_lock);
+
+    while (net.recvq.used_idx == net.recvq.used->idx) {
+        __asm__("nop");
+    }
+
+    int idx = net.recvq.used->ring[net.recvq.used_idx].id;
+    net.recvq.used_idx++;
+
+    uint16 len = 0;
+    while (1) {
+        len += net.recvq.desc[idx].len;
+        if (net.recvq.desc[idx].flags & VRING_DESC_F_NEXT) {
+            idx = net.recvq.desc[idx].next;
+        }
+        else {
+            break;
+        }
+    }
+
+    release(&net.vnet_lock);
+    return len;
+}
+
