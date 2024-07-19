@@ -37,23 +37,20 @@
 #define VIRTIO_CONFIG_S_DRIVER_OK	4
 #define VIRTIO_CONFIG_S_FEATURES_OK	8
 
-// device feature bits
-#define VIRTIO_BLK_F_RO              5	/* Disk is read-only */
-#define VIRTIO_BLK_F_SCSI            7	/* Supports scsi command passthru */
-#define VIRTIO_BLK_F_CONFIG_WCE     11	/* Writeback mode available in config */
-#define VIRTIO_BLK_F_MQ             12	/* support more than one vq */
+// common feature bits
 #define VIRTIO_F_ANY_LAYOUT         27
 #define VIRTIO_RING_F_INDIRECT_DESC 28
 #define VIRTIO_RING_F_EVENT_IDX     29
 
+// block device feature bits
+#define VIRTIO_BLK_F_RO              5	/* Disk is read-only */
+#define VIRTIO_BLK_F_SCSI            7	/* Supports scsi command passthru */
+#define VIRTIO_BLK_F_CONFIG_WCE     11	/* Writeback mode available in config */
+#define VIRTIO_BLK_F_MQ             12	/* support more than one vq */
+
+// net device feature bits
 #define VIRTIO_NET_F_GUEST_CSUM     1
-#define VIRTIO_NET_F_GUEST_TSO4     7
-#define VIRTIO_NET_F_GUEST_TSO6     8
-#define VIRTIO_NET_F_GUEST_ECN      9
-#define VIRTIO_NET_F_GUEST_UFO      10
-#define VIRTIO_NET_F_HOST_TSO4      11
-#define VIRTIO_NET_F_HOST_TSO6      12
-#define VIRTIO_NET_F_HOST_UFO       14
+#define VIRTIO_NFT_F_MAC            5
 #define VIRTIO_NET_F_MQ             22
 
 // this many virtio descriptors.
@@ -62,34 +59,36 @@
 
 // a single descriptor, from the spec.
 struct virtq_desc {
-  uint64 addr;
-  uint32 len;
-  uint16 flags;
-  uint16 next;
-};
+    uint64 addr;
+    uint32 len;
+
 #define VRING_DESC_F_NEXT  1 // chained with another descriptor
 #define VRING_DESC_F_WRITE 2 // device writes (vs read)
+    uint16 flags;
+    uint16 next;
+};
 
 // the (entire) avail ring, from the spec.
 struct virtq_avail {
-#define VRING_AVAIL_F_NO_INTERRUPT 1 // disable interrupt
-  uint16 flags; // always zero
-  uint16 idx;   // driver will write ring[idx] next
-  uint16 ring[NUM]; // descriptor numbers of chain heads
-  uint16 unused;
+#define VRING_AVAIL_F_NO_INTERRUPT 1
+    uint16 flags; // always zero
+    uint16 idx;   // driver will write ring[idx] next
+    uint16 ring[NUM]; // descriptor numbers of chain heads (2bytes/elem)
+    uint16 unused;
 };
 
 // one entry in the "used" ring, with which the
-// device tells the driver about completed requests.
+// device tells the driver about completed requests. (8bytes/elem)
 struct virtq_used_elem {
-  uint32 id;   // index of start of completed descriptor chain
-  uint32 len;
+    uint32 id;   // index of start of completed descriptor chain
+    uint32 len;
 };
 
 struct virtq_used {
-  uint16 flags; // always zero
-  uint16 idx;   // device increments when it adds a ring[] entry
-  struct virtq_used_elem ring[NUM];
+#define VRING_USED_F_NO_NOTIFY 1
+    uint16 flags; // always zero
+    uint16 idx;   // device increments when it adds a ring[] entry
+    struct virtq_used_elem ring[NUM];
 };
 
 struct virtq {
@@ -111,18 +110,18 @@ struct virtq {
 // to be followed by two more descriptors containing
 // the block, and a one-byte status.
 struct virtio_blk_req {
-  uint32 type; // VIRTIO_BLK_T_IN or ..._OUT
-  uint32 reserved;
-  uint64 sector;
+    uint32 type; // VIRTIO_BLK_T_IN or ..._OUT
+    uint32 reserved;
+    uint64 sector;
 };
 
 struct virtio_net_hdr {
     uint8 flags;
-#define VIRTIO_NET_HDR_GSO_NONE        0 
-#define VIRTIO_NET_HDR_GSO_TCPV4       1 
-#define VIRTIO_NET_HDR_GSO_UDP         3 
-#define VIRTIO_NET_HDR_GSO_TCPV6       4 
-#define VIRTIO_NET_HDR_GSO_ECN      0x80 
+#define VIRTIO_NET_HDR_GSO_NONE        0
+#define VIRTIO_NET_HDR_GSO_TCPV4       1
+#define VIRTIO_NET_HDR_GSO_UDP         3
+#define VIRTIO_NET_HDR_GSO_TCPV6       4
+#define VIRTIO_NET_HDR_GSO_ECN      0x80
     uint8 gso_type;
     uint16 hdr_len;
     uint16 gso_size;
