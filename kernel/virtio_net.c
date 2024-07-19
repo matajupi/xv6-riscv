@@ -63,6 +63,8 @@ static void setup_virtq(uint8 sel, struct virtq *vq) {
     for (int i = 0; NUM > i; i++) {
         vq->free[i] = 1;
     }
+
+    *R(VIRTIO_MMIO_QUEUE_READY) = 0x1;
 }
 
 void virtio_net_init(void) {
@@ -92,8 +94,12 @@ void virtio_net_init(void) {
     features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
     features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
     features &= ~(1 << VIRTIO_NET_F_GUEST_CSUM);
-    features &= ~(1 << VIRTIO_NFT_F_MAC);
     features &= ~(1 << VIRTIO_NET_F_MQ);
+    // TODO:
+    features |= 1 << 7;
+    features |= 1 << 8;
+    features |= 1 << 9;
+    features |= 1 << 10;
     *R(VIRTIO_MMIO_DRIVER_FEATURES) = features;
 
     status |= VIRTIO_CONFIG_S_FEATURES_OK;
@@ -101,8 +107,6 @@ void virtio_net_init(void) {
 
     setup_virtq(0, &net.rx_vq);
     setup_virtq(1, &net.tx_vq);
-
-    *R(VIRTIO_MMIO_QUEUE_READY) = 0x1;
 
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
@@ -214,6 +218,7 @@ uint16 virtio_net_recv(void *buf) {
     while (net.rx_vq.used_idx == net.rx_vq.used->idx) {
         __asm__("nop");
     }
+    printf("reciv"); // TODO:
 
     int idx = net.rx_vq.used->ring[net.rx_vq.used_idx].id;
     net.rx_vq.used_idx++;

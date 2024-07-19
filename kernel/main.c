@@ -31,13 +31,9 @@ main()
     netinit();
     virtio_net_init();
 
-// char buf[256] = "Hello World!";
-// virtio_net_send(buf, sizeof(buf));
-// strncpy(buf, "Hello! Kosuke.F", 256);
-// virtio_net_send(buf, sizeof(buf));
-
-// int len = virtio_net_recv(buf);
-// printf("%d\n", len);
+char buf[256];
+int len = virtio_net_recv(buf);
+printf("%d\n", len);
 
     userinit();      // first user process
     __sync_synchronize();

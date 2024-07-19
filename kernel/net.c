@@ -39,13 +39,3 @@ void netinit(void) {
     devsw[NET].write = netwrite;
 }
 
-// uint64 sys_net_send(void) {
-//     char buf[BUF_SIZE];
-//     int len = argstr(0, buf, BUF_SIZE);
-//     if (len == -1) {
-//         return -1;
-//     }
-//     virtio_net_send(buf, len);
-//     return 0;
-// }
-// 
