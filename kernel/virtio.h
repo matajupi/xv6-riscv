@@ -49,8 +49,6 @@
 #define VIRTIO_BLK_F_MQ             12	/* support more than one vq */
 
 // net device feature bits
-#define VIRTIO_NET_F_GUEST_CSUM     1
-#define VIRTIO_NET_F_MAC            5
 #define VIRTIO_NET_F_MQ             22
 
 // this many virtio descriptors.

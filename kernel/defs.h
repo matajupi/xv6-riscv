@@ -190,8 +190,13 @@ void            virtio_disk_intr(void);
 
 // virtio_net.c
 void            virtio_net_init(void);
-void            virtio_net_send(void *buf, int len);
-uint16            virtio_net_recv(void *buf);
+int            virtio_net_send(void *buf, int buf_size);
+int            virtio_net_recv(void *buf, int buf_size);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// min, max
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+

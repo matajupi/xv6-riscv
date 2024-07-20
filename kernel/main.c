@@ -31,10 +31,6 @@ main()
     netinit();
     virtio_net_init();
 
-char buf[256];
-int len = virtio_net_recv(buf);
-printf("%d\n", len);
-
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
