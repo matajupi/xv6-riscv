@@ -50,7 +50,7 @@
 
 // net device feature bits
 #define VIRTIO_NET_F_GUEST_CSUM     1
-#define VIRTIO_NFT_F_MAC            5
+#define VIRTIO_NET_F_MAC            5
 #define VIRTIO_NET_F_MQ             22
 
 // this many virtio descriptors.

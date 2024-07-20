@@ -167,7 +167,7 @@ QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 QEMUOPTS += -netdev user,id=net0,hostfwd=tcp::1234-:80
-# QEMUOPTS += -netdev tap,id=net0
+# QEMUOPTS += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
 QEMUOPTS += -device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.1,mac=52:54:00:12:34:56
 QEMUOPTS += -object filter-dump,id=fiter0,netdev=net0,file=dump.pcap
 

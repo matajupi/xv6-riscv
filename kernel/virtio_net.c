@@ -25,7 +25,7 @@ struct virtio_net_config {
     uint16 max_virtq_pairs;
 };
 
-static void setup_virtq(uint8 sel, struct virtq *vq) {
+static void setup_virtq(uint8 sel, struct virtq *vq, int rq) {
     *R(VIRTIO_MMIO_QUEUE_SEL) = sel;
 
     if (*R(VIRTIO_MMIO_QUEUE_READY)) {
@@ -50,6 +50,25 @@ static void setup_virtq(uint8 sel, struct virtq *vq) {
     memset(vq->desc, 0, PGSIZE);
     memset(vq->avail, 0, PGSIZE);
     memset(vq->used, 0, PGSIZE);
+
+    for (int i = 0; NUM > i; i++) {
+        vq->desc[i].addr = (uint64)kalloc();
+        vq->desc[i].len = PGSIZE;
+        if (rq) {
+            vq->desc[i].flags = VRING_DESC_F_WRITE;
+        }
+        else {
+            vq->desc[i].flags = 0;
+        }
+        vq->desc[i].next = 0;
+    }
+
+    if (rq) {
+        for (int i = 0; NUM > i; i++) {
+            vq->avail->ring[i] = i;
+        }
+        vq->avail->idx = NUM;
+    }
 
     *R(VIRTIO_MMIO_QUEUE_NUM) = NUM;
 
@@ -95,18 +114,14 @@ void virtio_net_init(void) {
     features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
     features &= ~(1 << VIRTIO_NET_F_GUEST_CSUM);
     features &= ~(1 << VIRTIO_NET_F_MQ);
-    // TODO:
-    features |= 1 << 7;
-    features |= 1 << 8;
-    features |= 1 << 9;
-    features |= 1 << 10;
+    features |= 1 << VIRTIO_NET_F_MAC;
     *R(VIRTIO_MMIO_DRIVER_FEATURES) = features;
 
     status |= VIRTIO_CONFIG_S_FEATURES_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
 
-    setup_virtq(0, &net.rx_vq);
-    setup_virtq(1, &net.tx_vq);
+    setup_virtq(0, &net.rx_vq, 1);
+    setup_virtq(1, &net.tx_vq, 0);
 
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     *R(VIRTIO_MMIO_STATUS) = status;
