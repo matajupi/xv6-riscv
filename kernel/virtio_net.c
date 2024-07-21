@@ -71,10 +71,6 @@ static void setup_virtq(uint8 sel, struct virtq *vq) {
     *R(VIRTIO_MMIO_DEVICE_DESC_LOW)     = (uint64)vq->used;
     *R(VIRTIO_MMIO_DEVICE_DESC_HIGH)    = (uint64)vq->used >> 32;
 
-    for (int i = 0; NUM > i; i++) {
-        vq->free[i] = 1;
-    }
-
     *R(VIRTIO_MMIO_QUEUE_READY) = 0x1;
 }
 

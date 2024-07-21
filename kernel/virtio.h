@@ -94,7 +94,6 @@ struct virtq {
     struct virtq_avail *avail;
     struct virtq_used *used;
 
-    char free[NUM];
     uint16 used_idx;
 };
 
