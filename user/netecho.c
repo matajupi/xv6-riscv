@@ -7,7 +7,7 @@
 int main(int argc, char **argv, char **envp) {
     int fd = open("net", O_RDWR);
     if (fd < 0) {
-        fprintf(2, "netwrite: failed to open net");
+        fprintf(2, "netecho: failed to open net");
         exit(-1);
     }
     char buf[BUF_SIZE];
